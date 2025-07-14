@@ -5,7 +5,10 @@ project(GMRESSolver LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Declare header-only interface library
+# Find MPI
+find_package(MPI REQUIRED)
+
+# Declare header-only interface library (no MPI linkage!)
 add_library(gmres INTERFACE)
 target_include_directories(gmres INTERFACE ${CMAKE_SOURCE_DIR}/include)
 
@@ -20,6 +23,11 @@ foreach(test_dir ${TEST_DIRS})
         set(test_name ${test_dir})
         add_executable(${test_name} test/${test_dir}/main.cpp)
         target_link_libraries(${test_name} PRIVATE gmres)
-        add_test(NAME ${test_name} COMMAND ${test_name})
+
+        if(${test_name} STREQUAL "Laplacian1DParallel")
+            target_link_libraries(${test_name} PRIVATE MPI::MPI_CXX)
+        endif()
+
+        add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
     endif()
 endforeach()

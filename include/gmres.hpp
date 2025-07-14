@@ -256,8 +256,6 @@ gmres_impl(const Op& A, const InnerProduct& inner_product, const PrecOp& PInv, c
 	  
 	  error = std::abs(beta[j+1]) / b_norm;
 
-	  std::cout << "It: " << num_iter << ". Err: " << std::scientific << error << std::endl ;
-
 	  if (error <= tol)
 	    {
 	      std::vector<real> beta_proj(beta.begin(), beta.begin()+j+1);
