@@ -294,7 +294,7 @@ GMRESImplementation(const Op& A, const InnerProduct& innerProduct, const Precond
 
 	  if (H.size() < restart_iter) H.push_back(std::vector<real>(H.size()+2,0.0));
 	  else std::fill(H[j].begin(),H[j].end(),0.0);
-	  if (Q.size() < restart_iter + 1) Q.push_back(V(n_local,0.0));
+	  if (Q.size() < restart_iter + 1) Q.push_back(V(n_local));
 
 	  Q[j+1] = preconditioner(A(Q[j]));
 	  idx_j.push_back(j);
