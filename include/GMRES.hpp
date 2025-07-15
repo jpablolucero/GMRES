@@ -49,10 +49,10 @@ requires(InnerProduct inner_product, const V& v1, const V& v2) {
 };
 
 template <class M>
-class identity_precond {
+class IdentityPreconditioner {
 public:
-  identity_precond() {}
-  identity_precond(const M&) {}
+  IdentityPreconditioner() {}
+  IdentityPreconditioner(const M&) {}
 
   template<class V>
   const V& operator()(const V& ve) const
@@ -61,7 +61,7 @@ public:
   }
 };
 
-struct default_inner_product
+struct DefaultInnerProduct
 {
   template <ValidVectorType V>
   typename V::value_type operator()(const V & v1, const V & v2) const
@@ -74,8 +74,8 @@ struct default_inner_product
 };
 
 template <class M,
-	  class InnerProduct = default_inner_product,
-	  class Preconditioner = identity_precond<M>>
+	  class InnerProduct = DefaultInnerProduct,
+	  class Preconditioner = IdentityPreconditioner<M>>
 class GMRES {
   public:
 
@@ -89,33 +89,33 @@ class GMRES {
   typedef std::pair<int, double> return_type;
 
   GMRES(const M& A)
-    : A_(A), inner_product_(getDefaultInnerProduct()), PInv_(A) {}
+    : A_(A), innerProduct_(getDefaultInnerProduct()), preconditioner_(A) {}
 
-  GMRES(const M& A, const InnerProduct & inner_product)
-    : A_(A), inner_product_(inner_product), PInv_(getDefaultPInv()) {}
+  GMRES(const M& A, const InnerProduct & innerProduct)
+    : A_(A), innerProduct_(innerProduct), preconditioner_(getDefaultpreconditioner()) {}
   
-  GMRES(const M& A, const InnerProduct & inner_product, const Preconditioner & PInv)
-    : A_(A), inner_product_(inner_product), PInv_(PInv) {}
+  GMRES(const M& A, const InnerProduct & innerProduct, const Preconditioner & preconditioner)
+    : A_(A), innerProduct_(innerProduct), preconditioner_(preconditioner) {}
 
   GMRES(const M& A, const Parameters& p)
-    : A_(A), inner_product_(getDefaultInnerProduct()), PInv_(A), parameters_(p) {}
+    : A_(A), innerProduct_(getDefaultInnerProduct()), preconditioner_(A), parameters_(p) {}
 
-  GMRES(const M& A, const InnerProduct & inner_product, const Parameters& p)
-    : A_(A), inner_product_(inner_product), PInv_(getDefaultPInv()), parameters_(p) {}
+  GMRES(const M& A, const InnerProduct & innerProduct, const Parameters& p)
+    : A_(A), innerProduct_(innerProduct), preconditioner_(getDefaultpreconditioner()), parameters_(p) {}
 
-  GMRES(const M& A, const InnerProduct & inner_product, const Preconditioner & PInv, const Parameters& p)
-    : A_(A), inner_product_(inner_product), PInv_(PInv), parameters_(p) {}
+  GMRES(const M& A, const InnerProduct & innerProduct, const Preconditioner & preconditioner, const Parameters& p)
+    : A_(A), innerProduct_(innerProduct), preconditioner_(preconditioner), parameters_(p) {}
 
   GMRES(const GMRES&) = delete;
   GMRES(GMRES&&) = delete;
   GMRES& operator=(const GMRES&) = delete;
   GMRES& operator=(GMRES&&) = delete;
 
-  Parameters get_parameters() const {
+  Parameters getParameters() const {
     return parameters_;
   }
 
-  void set_parameters(const Parameters& p) {
+  void setParameters(const Parameters& p) {
     parameters_ = p;
   }
 
@@ -126,7 +126,7 @@ class GMRES {
     static_assert(ValidInnerProduct<InnerProduct, V>,
                   "InnerProduct is not valid for this vector type");
     return GMRES_impl<M,InnerProduct,Preconditioner,V>
-      (A_, inner_product_, PInv_, b, x,
+      (A_, innerProduct_, preconditioner_, b, x,
        parameters_.max_iter,
        parameters_.restart_iter,
        parameters_.tol);
@@ -134,24 +134,23 @@ class GMRES {
 
 private:
   const M& A_; 
-  const InnerProduct& inner_product_;
-  const Preconditioner& PInv_;
+  const InnerProduct& innerProduct_;
+  const Preconditioner& preconditioner_;
   Parameters parameters_;
 
   static const InnerProduct& getDefaultInnerProduct()
   {
-    static const InnerProduct ip{};
+    static const DefaultInnerProduct ip{};
     return ip;
   }
 
-  static const Preconditioner& getDefaultPInv()
+  static const Preconditioner& getDefaultpreconditioner()
   {
-    static const identity_precond<M> ip{};
+    static const IdentityPreconditioner<M> ip{};
     return ip;
   }
 
 };
-
 
 template<typename T>
 std::pair<T, T> givens_rotation(T x1, T x2)
@@ -212,7 +211,7 @@ auto solveUpperTriangular(const auto & U,
 
 template<class Op, class InnerProduct, class PrecOp, class V>
 auto
-GMRES_impl(const Op& A, const InnerProduct& inner_product, const PrecOp& PInv, const V& b, V& x,
+GMRES_impl(const Op& A, const InnerProduct& innerProduct, const PrecOp& preconditioner, const V& b, V& x,
 	   typename V::size_type max_iter_, typename V::size_type restart_iter_,
 	   typename V::value_type tol)
 {
@@ -230,13 +229,13 @@ GMRES_impl(const Op& A, const InnerProduct& inner_product, const PrecOp& PInv, c
 		  ones[i] = 1.0;
 		});
 
-  natural n_global = static_cast<natural>(inner_product(ones,ones)+0.5);
+  natural n_global = static_cast<natural>(innerProduct(ones,ones)+0.5);
   natural max_iter = max_iter_ ;
   natural restart_iter = std::min(n_global, static_cast<natural>(restart_iter_));
 
   auto norm_2 = [&](const auto & vin)
   {
-    return std::sqrt(inner_product(vin,vin));
+    return std::sqrt(innerProduct(vin,vin));
   };
 
   V r = A(x);
@@ -245,9 +244,9 @@ GMRES_impl(const Op& A, const InnerProduct& inner_product, const PrecOp& PInv, c
 		  r[i] = b[i] - r[i];
 		});
  
-  r = PInv(r);
+  r = preconditioner(r);
   real r_norm = norm_2(r);
-  real b_norm = norm_2(PInv(b));
+  real b_norm = norm_2(preconditioner(b));
 
   if (std::abs(b_norm) < 1.E-14)
     {
@@ -289,13 +288,13 @@ GMRES_impl(const Op& A, const InnerProduct& inner_product, const PrecOp& PInv, c
 	  else std::fill(H[j].begin(),H[j].end(),0.0);
 	  if (Q.size() < restart_iter + 1) Q.push_back(V(n_local,0.0));
 
-	  Q[j+1] = PInv(A(Q[j]));
+	  Q[j+1] = preconditioner(A(Q[j]));
 	  idx_j.push_back(j);
 
 	  // Naturally sequential
 	  for (natural k = 0; k <= j; ++k)
 	    {
-	      H[j][k] = inner_product(Q[k], Q[j+1]);
+	      H[j][k] = innerProduct(Q[k], Q[j+1]);
 	      std::for_each(idx.begin(), idx.end(),
 			    [&Q, &H, &j, &k](natural i)
 			    {
@@ -303,7 +302,7 @@ GMRES_impl(const Op& A, const InnerProduct& inner_product, const PrecOp& PInv, c
 			    });
 	    }
 
-	  H[j][j+1] = std::sqrt(inner_product(Q[j+1], Q[j+1]));
+	  H[j][j+1] = std::sqrt(innerProduct(Q[j+1], Q[j+1]));
 
 	  std::for_each(idx.begin(), idx.end(),
 			[&Q, &H, &j](natural i)
@@ -353,7 +352,7 @@ GMRES_impl(const Op& A, const InnerProduct& inner_product, const PrecOp& PInv, c
 		    [&r, &b](std::size_t i) {
 		      r[i] = b[i] - r[i];
 		    });
-      r = PInv(r);
+      r = preconditioner(r);
       r_norm = norm_2(r);
       error  = norm_2(r) / b_norm;
 

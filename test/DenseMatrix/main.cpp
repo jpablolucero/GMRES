@@ -41,11 +41,11 @@ int main()
 
   GMRES solver(op);
 
-  auto parameters = solver.get_parameters();
+  auto parameters = solver.getParameters();
   parameters.max_iter = 1E9;
   parameters.restart_iter = 30;
   parameters.tol = 1.E-8;
-  solver.set_parameters(parameters);
+  solver.setParameters(parameters);
 
   auto res = solver(rhs, sol);
 

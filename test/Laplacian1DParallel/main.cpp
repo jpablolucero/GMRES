@@ -78,11 +78,11 @@ int main(int argc, char** argv)
   };
 
   GMRES solver(op,inner_product);
-  auto parameters = solver.get_parameters();
+  auto parameters = solver.getParameters();
   parameters.max_iter = N;
   parameters.restart_iter = 30;
   parameters.tol = 1.E-6;
-  solver.set_parameters(parameters);
+  solver.setParameters(parameters);
 
   auto res = solver(b, sol);
 
