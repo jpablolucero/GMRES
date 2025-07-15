@@ -219,9 +219,9 @@ auto solveUpperTriangular(const auto & U,
   return std::move(x);
 }
 
-template<class Op, class InnerProduct, class PrecOp, class V>
+template<class Op, class InnerProduct, class Preconditioner, class V>
 auto
-GMRES_impl(const Op& A, const InnerProduct& innerProduct, const PrecOp& preconditioner, const V& b, V& x,
+GMRES_impl(const Op& A, const InnerProduct& innerProduct, const Preconditioner& preconditioner, const V& b, V& x,
 	   typename V::size_type max_iter_, typename V::size_type restart_iter_,
 	   typename V::value_type tol)
 {
