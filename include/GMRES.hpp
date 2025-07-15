@@ -6,32 +6,37 @@
 #include <numeric>
 
 template <typename T>
-concept HasUnsignedSizeType = requires {
-  typename T::size_type;
-  requires std::is_unsigned_v<typename T::size_type>;
-};
+concept HasUnsignedSizeType = requires
+  {
+    typename T::size_type;
+    requires std::is_unsigned_v<typename T::size_type>;
+  };
 
 template <typename T>
-concept HasSizeFunction = requires(T t) {
-  { t.size() } -> std::same_as<typename T::size_type>;
-};
+concept HasSizeFunction = requires(T t)
+  {
+    { t.size() } -> std::same_as<typename T::size_type>;
+  };
 
 template <typename T>
-concept ConstructibleFromInteger = requires(T, typename T::size_type x) {
-  requires std::is_integral_v<typename T::size_type>;
-  { T(x) };
-};
+concept ConstructibleFromInteger = requires(T, typename T::size_type x)
+  {
+    requires std::is_integral_v<typename T::size_type>;
+    { T(x) };
+  };
 
 template <typename T>
-concept HasFloatingPointValueType = requires {
-  typename T::value_type;
-  requires std::is_floating_point_v<typename T::value_type>;
-};
+concept HasFloatingPointValueType = requires
+  {
+    typename T::value_type;
+    requires std::is_floating_point_v<typename T::value_type>;
+  };
 
 template <typename T>
-concept HasIndexOperator = requires(T t, typename T::size_type i) {
-  { t[i] } -> std::convertible_to<typename T::value_type>;
-};
+concept HasIndexOperator = requires(T t, typename T::size_type i)
+  {
+    { t[i] } -> std::convertible_to<typename T::value_type>;
+  };
 
 template <typename T>
 concept ValidVectorType
@@ -44,16 +49,18 @@ concept ValidVectorType
 template <typename InnerProduct, typename V>
 concept ValidInnerProduct =
 ValidVectorType<V> &&
-requires(InnerProduct inner_product, const V& v1, const V& v2) {
+requires(InnerProduct inner_product, const V& v1, const V& v2)
+  {
     { inner_product(v1, v2) } -> std::convertible_to<typename V::value_type>;
-};
+  };
 
 template <class M>
-class IdentityPreconditioner {
+class IdentityPreconditioner
+{
 public:
   IdentityPreconditioner() {}
   IdentityPreconditioner(const M&) {}
-
+  
   template<class V>
   const V& operator()(const V& ve) const
   {
@@ -76,8 +83,9 @@ struct DefaultInnerProduct
 template <class M,
 	  class InnerProduct = DefaultInnerProduct,
 	  class Preconditioner = IdentityPreconditioner<M>>
-class GMRES {
-  public:
+class GMRES
+{
+public:
 
   struct Parameters
   {
@@ -111,11 +119,13 @@ class GMRES {
   GMRES& operator=(const GMRES&) = delete;
   GMRES& operator=(GMRES&&) = delete;
 
-  Parameters getParameters() const {
+  Parameters getParameters() const
+  {
     return parameters_;
   }
 
-  void setParameters(const Parameters& p) {
+  void setParameters(const Parameters& p)
+  {
     parameters_ = p;
   }
 
