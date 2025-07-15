@@ -133,7 +133,7 @@ public:
     static_assert(ValidVectorType<V>,"Not a valid vector class");
     static_assert(ValidInnerProduct<InnerProduct, V>,
                   "InnerProduct is not valid for this vector type");
-    return GMRES_impl<M,InnerProduct,Preconditioner,V>
+    return GMRESImplementation<M,InnerProduct,Preconditioner,V>
       (A_, innerProduct_, preconditioner_, b, x,
        parameters_.max_iter,
        parameters_.restart_iter,
@@ -169,7 +169,7 @@ std::pair<T, T> givens_rotation(T x1, T x2)
 }
 
 template<class T>
-void apply_givens_rotation(auto& h_col, std::vector<T>& cs, std::vector<T>& sn,
+void applyGivensRotation(auto& h_col, std::vector<T>& cs, std::vector<T>& sn,
                            typename std::vector<T>::size_type j) {
   using size_type = typename std::vector<T>::size_type;
   using value_type = T;
@@ -219,9 +219,9 @@ auto solveUpperTriangular(const auto & U,
 
 template<class Op, class InnerProduct, class Preconditioner, class V>
 auto
-GMRES_impl(const Op& A, const InnerProduct& innerProduct, const Preconditioner& preconditioner, const V& b, V& x,
-	   typename V::size_type max_iter_, typename V::size_type restart_iter_,
-	   typename V::value_type tol)
+GMRESImplementation(const Op& A, const InnerProduct& innerProduct, const Preconditioner& preconditioner, const V& b, V& x,
+		    typename V::size_type max_iter_, typename V::size_type restart_iter_,
+		    typename V::value_type tol)
 {
   typedef typename V::value_type real;
   typedef typename V::size_type natural;
@@ -318,7 +318,7 @@ GMRES_impl(const Op& A, const InnerProduct& innerProduct, const Preconditioner& 
 			  Q[j + 1][i] /= H[j][j + 1];
 			});
 
-	  apply_givens_rotation(H[j], cs, sn, j);
+	  applyGivensRotation(H[j], cs, sn, j);
 
 	  beta[j+1] = sn[j]*beta[j];
 	  beta[j]   = cs[j]*beta[j];
