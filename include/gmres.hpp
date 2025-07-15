@@ -62,10 +62,13 @@ public:
 
 struct default_inner_product
 {
-  template <typename V>
-  auto operator()(const V & v1, const V & v2) const
+  template <ValidVectorType V>
+  typename V::value_type operator()(const V & v1, const V & v2) const
   {
-    return std::inner_product(v1.begin(),v1.end(),v2.begin(),0.0);
+    typename V::value_type result = 0.0;
+    for (typename V::size_type i = 0; i < v1.size(); ++i)
+      result += v1[i] * v2[i];
+    return result;
   }
 };
 
@@ -92,9 +95,6 @@ class gmres {
   gmres(const M& A, const InnerProduct & inner_product, const Preconditioner & PInv)
     : A_(A), inner_product_(inner_product), PInv_(PInv) {}
 
-  gmres(const M& A, const InnerProduct & inner_product, const Preconditioner && PInv)
-    : A_(A), inner_product_(inner_product), PInv_(std::move(PInv)) {}
-
   gmres(const M& A, const param& p)
     : A_(A), inner_product_(getDefaultInnerProduct()), PInv_(A), param_(p) {}
 
@@ -103,9 +103,6 @@ class gmres {
 
   gmres(const M& A, const InnerProduct & inner_product, const Preconditioner & PInv, const param& p)
     : A_(A), inner_product_(inner_product), PInv_(PInv), param_(p) {}
-
-  gmres(const M& A, const InnerProduct & inner_product, const Preconditioner && PInv, const param& p)
-    : A_(A), inner_product_(inner_product), PInv_(std::move(PInv)), param_(p) {}
 
   gmres(const gmres&) = delete;
   gmres(gmres&&) = delete;
