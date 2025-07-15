@@ -89,8 +89,8 @@ public:
 
   struct Parameters
   {
-    int max_iter = 30;
-    int restart_iter = 30;
+    std::size_t max_iter = 30;
+    std::size_t restart_iter = 30;
     double tol = 1e-6;
   };
 
