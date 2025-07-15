@@ -94,8 +94,6 @@ public:
     double tol = 1e-6;
   };
 
-  typedef std::pair<int, double> return_type;
-
   GMRES(const M& A)
     : A_(A), innerProduct_(getDefaultInnerProduct()), preconditioner_(A) {}
 
@@ -130,7 +128,7 @@ public:
   }
 
   template<class V>
-  return_type operator()(const V& b, V& x) const
+  std::pair<std::size_t, double> operator()(const V& b, V& x) const
   {
     static_assert(ValidVectorType<V>,"Not a valid vector class");
     static_assert(ValidInnerProduct<InnerProduct, V>,
