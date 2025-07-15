@@ -3,7 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <numeric>
-#include "gmres.hpp"
+#include "GMRES.hpp"
 
 int main()
 {
@@ -41,13 +41,13 @@ int main()
 
   auto b = op(refSol);
 
-  gmres solver(op);
+  GMRES solver(op);
 
-  auto param = solver.get_param();
-  param.max_iter = N;
-  param.restart_iter = 30;
-  param.tol = 1.E-6;
-  solver.set_param(param);
+  auto parameters = solver.get_parameters();
+  parameters.max_iter = N;
+  parameters.restart_iter = 30;
+  parameters.tol = 1.E-6;
+  solver.set_parameters(parameters);
   
   auto res = solver(b,sol);
 

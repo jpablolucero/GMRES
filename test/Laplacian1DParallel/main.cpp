@@ -4,7 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <numeric>
-#include "gmres.hpp"
+#include "GMRES.hpp"
 
 int main(int argc, char** argv)
 {
@@ -77,12 +77,12 @@ int main(int argc, char** argv)
     return global;
   };
 
-  gmres solver(op,inner_product);
-  auto param = solver.get_param();
-  param.max_iter = N;
-  param.restart_iter = 30;
-  param.tol = 1.E-6;
-  solver.set_param(param);
+  GMRES solver(op,inner_product);
+  auto parameters = solver.get_parameters();
+  parameters.max_iter = N;
+  parameters.restart_iter = 30;
+  parameters.tol = 1.E-6;
+  solver.set_parameters(parameters);
 
   auto res = solver(b, sol);
 

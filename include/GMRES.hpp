@@ -55,7 +55,8 @@ public:
   identity_precond(const M&) {}
 
   template<class V>
-  const V& operator()(const V& ve) const {
+  const V& operator()(const V& ve) const
+  {
     return ve;
   }
 };
@@ -75,10 +76,11 @@ struct default_inner_product
 template <class M,
 	  class InnerProduct = default_inner_product,
 	  class Preconditioner = identity_precond<M>>
-class gmres {
+class GMRES {
   public:
 
-  struct param {
+  struct Parameters
+  {
     int max_iter = 30;
     int restart_iter = 30;
     double tol = 1e-6;
@@ -86,35 +88,35 @@ class gmres {
 
   typedef std::pair<int, double> return_type;
 
-  gmres(const M& A)
+  GMRES(const M& A)
     : A_(A), inner_product_(getDefaultInnerProduct()), PInv_(A) {}
 
-  gmres(const M& A, const InnerProduct & inner_product)
+  GMRES(const M& A, const InnerProduct & inner_product)
     : A_(A), inner_product_(inner_product), PInv_(getDefaultPInv()) {}
   
-  gmres(const M& A, const InnerProduct & inner_product, const Preconditioner & PInv)
+  GMRES(const M& A, const InnerProduct & inner_product, const Preconditioner & PInv)
     : A_(A), inner_product_(inner_product), PInv_(PInv) {}
 
-  gmres(const M& A, const param& p)
-    : A_(A), inner_product_(getDefaultInnerProduct()), PInv_(A), param_(p) {}
+  GMRES(const M& A, const Parameters& p)
+    : A_(A), inner_product_(getDefaultInnerProduct()), PInv_(A), parameters_(p) {}
 
-  gmres(const M& A, const InnerProduct & inner_product, const param& p)
-    : A_(A), inner_product_(inner_product), PInv_(getDefaultPInv()), param_(p) {}
+  GMRES(const M& A, const InnerProduct & inner_product, const Parameters& p)
+    : A_(A), inner_product_(inner_product), PInv_(getDefaultPInv()), parameters_(p) {}
 
-  gmres(const M& A, const InnerProduct & inner_product, const Preconditioner & PInv, const param& p)
-    : A_(A), inner_product_(inner_product), PInv_(PInv), param_(p) {}
+  GMRES(const M& A, const InnerProduct & inner_product, const Preconditioner & PInv, const Parameters& p)
+    : A_(A), inner_product_(inner_product), PInv_(PInv), parameters_(p) {}
 
-  gmres(const gmres&) = delete;
-  gmres(gmres&&) = delete;
-  gmres& operator=(const gmres&) = delete;
-  gmres& operator=(gmres&&) = delete;
+  GMRES(const GMRES&) = delete;
+  GMRES(GMRES&&) = delete;
+  GMRES& operator=(const GMRES&) = delete;
+  GMRES& operator=(GMRES&&) = delete;
 
-  param get_param() const {
-    return param_;
+  Parameters get_parameters() const {
+    return parameters_;
   }
 
-  void set_param(const param& p) {
-    param_ = p;
+  void set_parameters(const Parameters& p) {
+    parameters_ = p;
   }
 
   template<class V>
@@ -123,18 +125,18 @@ class gmres {
     static_assert(ValidVectorType<V>,"Not a valid vector class");
     static_assert(ValidInnerProduct<InnerProduct, V>,
                   "InnerProduct is not valid for this vector type");
-    return gmres_impl<M,InnerProduct,Preconditioner,V>
+    return GMRES_impl<M,InnerProduct,Preconditioner,V>
       (A_, inner_product_, PInv_, b, x,
-       param_.max_iter,
-       param_.restart_iter,
-       param_.tol);
+       parameters_.max_iter,
+       parameters_.restart_iter,
+       parameters_.tol);
   }
 
 private:
   const M& A_; 
   const InnerProduct& inner_product_;
   const Preconditioner& PInv_;
-  param param_;
+  Parameters parameters_;
 
   static const InnerProduct& getDefaultInnerProduct()
   {
@@ -210,7 +212,7 @@ auto solveUpperTriangular(const auto & U,
 
 template<class Op, class InnerProduct, class PrecOp, class V>
 auto
-gmres_impl(const Op& A, const InnerProduct& inner_product, const PrecOp& PInv, const V& b, V& x,
+GMRES_impl(const Op& A, const InnerProduct& inner_product, const PrecOp& PInv, const V& b, V& x,
 	   typename V::size_type max_iter_, typename V::size_type restart_iter_,
 	   typename V::value_type tol)
 {
