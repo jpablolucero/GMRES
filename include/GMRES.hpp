@@ -95,7 +95,7 @@ public:
   };
 
   GMRES(const M& A)
-    : A_(A), innerProduct_(getDefaultInnerProduct()), preconditioner_(A) {}
+    : A_(A), innerProduct_(getDefaultInnerProduct()), preconditioner_(getDefaultpreconditioner()) {}
 
   GMRES(const M& A, const InnerProduct & innerProduct)
     : A_(A), innerProduct_(innerProduct), preconditioner_(getDefaultpreconditioner()) {}
@@ -104,7 +104,7 @@ public:
     : A_(A), innerProduct_(innerProduct), preconditioner_(preconditioner) {}
 
   GMRES(const M& A, const Parameters& p)
-    : A_(A), innerProduct_(getDefaultInnerProduct()), preconditioner_(A), parameters_(p) {}
+    : A_(A), innerProduct_(getDefaultInnerProduct()), preconditioner_(getDefaultpreconditioner()), parameters_(p) {}
 
   GMRES(const M& A, const InnerProduct & innerProduct, const Parameters& p)
     : A_(A), innerProduct_(innerProduct), preconditioner_(getDefaultpreconditioner()), parameters_(p) {}
