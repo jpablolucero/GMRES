@@ -310,6 +310,20 @@ GMRESImplementation(const Op& A, const InnerProduct& innerProduct, const Precond
 			    });
 	    }
 
+	  std::vector<real> tmp(j+1,0.0);
+
+	  // Naturally sequential
+	  for (natural k = 0; k <= j; ++k)
+	    {
+	      tmp[k] = innerProduct(Q[k], Q[j+1]);
+	      std::for_each(idx.begin(), idx.end(),
+			    [&Q, &tmp, &j, &k](natural i)
+			    {
+			      Q[j + 1][i] -= Q[k][i] * tmp[k];
+			    });
+	      H[j][k] += tmp[k];
+	    }
+	  
 	  H[j][j+1] = std::sqrt(innerProduct(Q[j+1], Q[j+1]));
 
 	  std::for_each(idx.begin(), idx.end(),
