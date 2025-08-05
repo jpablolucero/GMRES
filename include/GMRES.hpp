@@ -4,92 +4,19 @@
 #include <type_traits>
 #include <algorithm>
 #include <numeric>
+#include <cmath>
+#include <solver_tools.hpp>
 
-template <typename T>
-concept HasUnsignedSizeType = requires
-  {
-    typename T::size_type;
-    requires std::is_unsigned_v<typename T::size_type>;
-  };
-
-template <typename T>
-concept HasSizeFunction = requires(T t)
-  {
-    { t.size() } -> std::same_as<typename T::size_type>;
-  };
-
-template <typename T>
-concept ConstructibleFromInteger = requires(T, typename T::size_type x)
-  {
-    requires std::is_integral_v<typename T::size_type>;
-    { T(x) };
-  };
-
-template <typename T>
-concept HasFloatingPointValueType = requires
-  {
-    typename T::value_type;
-    requires std::is_floating_point_v<typename T::value_type>;
-  };
-
-template <typename T>
-concept HasIndexOperator = requires(T t, typename T::size_type i)
-  {
-    { t[i] } -> std::convertible_to<typename T::value_type>;
-  };
-
-template <typename T>
-concept ValidVectorType
-= HasUnsignedSizeType<T> &&
-  HasSizeFunction<T> &&
-  ConstructibleFromInteger<T> &&
-  HasFloatingPointValueType<T> &&
-  HasIndexOperator<T>;
-
-template <typename InnerProduct, typename V>
-concept ValidInnerProduct =
-ValidVectorType<V> &&
-requires(InnerProduct inner_product, const V& v1, const V& v2)
-  {
-    { inner_product(v1, v2) } -> std::convertible_to<typename V::value_type>;
-  };
-
-template <class M>
-class IdentityPreconditioner
-{
-public:
-  IdentityPreconditioner() {}
-  IdentityPreconditioner(const M&) {}
-  
-  template<class V>
-  const V& operator()(const V& ve) const
-  {
-    return ve;
-  }
-};
-
-struct DefaultInnerProduct
-{
-  template <ValidVectorType V>
-  typename V::value_type operator()(const V & v1, const V & v2) const
-  {
-    typename V::value_type result = 0.0;
-    for (typename V::size_type i = 0; i < v1.size(); ++i)
-      result += v1[i] * v2[i];
-    return result;
-  }
-};
-
-template <class M,
-	  class InnerProduct = DefaultInnerProduct,
-	  class Preconditioner = IdentityPreconditioner<M>>
+template <typename M,
+	  typename InnerProduct = DefaultInnerProduct,
+	  typename Preconditioner = IdentityPreconditioner<M>>
 class GMRES
 {
 public:
 
   struct Parameters
   {
-    std::size_t max_iter = 30;
+    std::size_t max_iter = 100;
     std::size_t restart_iter = 30;
     double tol = 1e-6;
   };
@@ -127,7 +54,7 @@ public:
     parameters_ = p;
   }
 
-  template<class V>
+  template<typename V>
   std::pair<std::size_t, double> operator()(const V& b, V& x) const
   {
     static_assert(ValidVectorType<V>,"Not a valid vector class");
@@ -160,24 +87,21 @@ private:
 
 };
 
-template<typename T>
-std::pair<T, T> givens_rotation(T x1, T x2)
-{
-  T d = std::sqrt(x1 * x1 + x2 * x2);
-  if (d == T(0)) return std::make_pair(T(1), T(0));
-  return std::make_pair(x1 / d, -x2 / d);
-}
+template<typename real>
+void applyGivensRotation(auto& h_col, std::vector<real>& cs, std::vector<real>& sn,
+			 typename std::vector<real>::size_type j) {
 
-template<class T>
-void applyGivensRotation(auto& h_col, std::vector<T>& cs, std::vector<T>& sn,
-                           typename std::vector<T>::size_type j) {
-  using size_type = typename std::vector<T>::size_type;
-  using value_type = T;
+  auto givens_rotation = [&](real x1, real x2) -> std::pair<real, real>
+  {
+    real d = std::sqrt(x1 * x1 + x2 * x2);
+    if (d < 10*std::numeric_limits<real>::epsilon()) return std::make_pair(real(1), real(0));
+    return std::make_pair(x1 / d, -x2 / d);
+  };
 
   // Not parallelizable because of data dependency
-  for (size_type i = 0; i < j; ++i)
+  for (std::size_t i = 0; i < j; ++i)
     {
-      value_type tmp = cs[i] * h_col[i] - sn[i] * h_col[i + 1];
+      real tmp = cs[i] * h_col[i] - sn[i] * h_col[i + 1];
       h_col[i + 1] = sn[i] * h_col[i] + cs[i] * h_col[i + 1];
       h_col[i] = tmp;
     }
@@ -185,31 +109,29 @@ void applyGivensRotation(auto& h_col, std::vector<T>& cs, std::vector<T>& sn,
     {
       std::tie(cs[j], sn[j]) = givens_rotation(h_col[j], h_col[j + 1]);
       h_col[j] = cs[j] * h_col[j] - sn[j] * h_col[j + 1];
-      h_col[j + 1] = value_type(0);
+      h_col[j + 1] = real(0);
     }
   else
     {
-      cs[j] = value_type(1.0);
-      sn[j] = value_type(0);
+      cs[j] = real(1.0);
+      sn[j] = real(0);
     }
 
 }
 
-auto solveUpperTriangular(const auto & U,
+template <typename real>
+auto solveUpperTriangular(const std::vector<std::vector<real>> & U,
 			  auto b)
 {
 
-  using size_t = typename decltype(b)::size_type ;
-  using value_t = typename decltype(b)::value_type ;
+  std::size_t n = b.size();
 
-  size_t n = b.size();
-
-  std::vector<double> x(n,0.0);
+  std::vector<real> x(n,0.0);
 
   for (int i = n - 1; i >= 0; --i)
     {
-      value_t sum = 0.0; 
-      for (size_t j = i + 1; j < n; ++j)
+      real sum = 0.0; 
+      for (std::size_t j = i + 1; j < n; ++j)
 	sum += U[j][i] * x[j];
       x[i] = (b[i] - sum) / U[i][i];
     }
@@ -217,8 +139,8 @@ auto solveUpperTriangular(const auto & U,
   return std::move(x);
 }
 
-template<class Op, class InnerProduct, class Preconditioner, class V>
-auto
+template<typename Op, typename InnerProduct, typename Preconditioner, typename V>
+std::pair<typename V::size_type,typename V::value_type>
 GMRESImplementation(const Op& A, const InnerProduct& innerProduct, const Preconditioner& preconditioner, const V& b, V& x,
 		    typename V::size_type max_iter_, typename V::size_type restart_iter_,
 		    typename V::value_type tol)
@@ -226,8 +148,7 @@ GMRESImplementation(const Op& A, const InnerProduct& innerProduct, const Precond
   typedef typename V::value_type real;
   typedef typename V::size_type natural;
 
-
-  natural n_local = x.size();
+  const natural n_local = x.size();
   std::vector<natural> idx(n_local); std::iota(idx.begin(),idx.end(),0);
 
   V ones = x;
@@ -237,9 +158,9 @@ GMRESImplementation(const Op& A, const InnerProduct& innerProduct, const Precond
 		  ones[i] = 1.0;
 		});
 
-  natural n_global = static_cast<natural>(innerProduct(ones,ones)+0.5);
-  natural max_iter = max_iter_ ;
-  natural restart_iter = std::min(n_global, static_cast<natural>(restart_iter_));
+  const natural n_global = static_cast<natural>(innerProduct(ones,ones)+0.5);
+  const natural max_iter = max_iter_ ;
+  const natural restart_iter = std::min(n_global, static_cast<natural>(restart_iter_));
 
   auto norm_2 = [&](const auto & vin)
   {
@@ -310,19 +231,16 @@ GMRESImplementation(const Op& A, const InnerProduct& innerProduct, const Precond
 			    });
 	    }
 
-	  std::vector<real> tmp(j+1,0.0);
+	  std::vector<real> tmp(j+1, 0.0);
 
-	  // Naturally sequential
-	  for (natural k = 0; k <= j; ++k)
-	    {
-	      tmp[k] = innerProduct(Q[k], Q[j+1]);
-	      std::for_each(idx.begin(), idx.end(),
-			    [&Q, &tmp, &j, &k](natural i)
-			    {
-			      Q[j + 1][i] -= Q[k][i] * tmp[k];
-			    });
-	      H[j][k] += tmp[k];
-	    }
+	  for (natural k = 0; k <= j; ++k) {
+	    tmp[k] = innerProduct(Q[k], Q[j+1]);
+	    std::for_each(idx.begin(), idx.end(),
+			  [&Q, &j, &k, &tmp](natural i) {
+			    Q[j+1][i] -= Q[k][i] * tmp[k];
+			  });
+	    H[j][k] += tmp[k];
+	  }
 	  
 	  H[j][j+1] = std::sqrt(innerProduct(Q[j+1], Q[j+1]));
 
